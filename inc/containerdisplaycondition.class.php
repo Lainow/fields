@@ -38,13 +38,13 @@ class PluginFieldsContainerDisplayCondition extends CommonDBChild
     public static $itemtype = PluginFieldsContainer::class;
     public static $items_id = 'plugin_fields_containers_id';
 
-    const SHOW_CONDITION_EQ         = 1;
-    const SHOW_CONDITION_NE         = 2;
-    const SHOW_CONDITION_LT         = 3;
-    const SHOW_CONDITION_GT         = 4;
-    const SHOW_CONDITION_REGEX      = 5;
-    const SHOW_CONDITION_UNDER      = 6;
-    const SHOW_CONDITION_NOT_UNDER  = 7;
+    public const SHOW_CONDITION_EQ         = 1;
+    public const SHOW_CONDITION_NE         = 2;
+    public const SHOW_CONDITION_LT         = 3;
+    public const SHOW_CONDITION_GT         = 4;
+    public const SHOW_CONDITION_REGEX      = 5;
+    public const SHOW_CONDITION_UNDER      = 6;
+    public const SHOW_CONDITION_NOT_UNDER  = 7;
 
     /**
      * Install or update plugin base data.
@@ -76,7 +76,7 @@ class PluginFieldsContainerDisplayCondition extends CommonDBChild
                   PRIMARY KEY                         (`id`),
                   KEY `plugin_fields_containers_id_itemtype`       (`plugin_fields_containers_id`, `itemtype`)
                ) ENGINE=InnoDB DEFAULT CHARSET={$default_charset} COLLATE={$default_collation} ROW_FORMAT=DYNAMIC;";
-            $DB->query($query) or die($DB->error());
+            $DB->doQuery($query) or die($DB->error());
         }
 
         return true;
@@ -145,7 +145,7 @@ class PluginFieldsContainerDisplayCondition extends CommonDBChild
     {
         /** @var DBmysql $DB */
         global $DB;
-        $DB->query("DROP TABLE IF EXISTS `" . self::getTable() . "`");
+        $DB->doQuery("DROP TABLE IF EXISTS `" . self::getTable() . "`");
         return true;
     }
 
@@ -158,6 +158,10 @@ class PluginFieldsContainerDisplayCondition extends CommonDBChild
 
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
+        if (!$item instanceof CommonDBTM) {
+            return '';
+        }
+
         return self::createTabEntry(
             self::getTypeName(Session::getPluralNumber()),
             countElementsInTable(self::getTable(), ['plugin_fields_containers_id' => $item->getID()])
@@ -491,9 +495,10 @@ class PluginFieldsContainerDisplayCondition extends CommonDBChild
     public static function checkRegex($regex)
     {
         // Avoid php notice when validating the regular expression
+        /** @phpstan-ignore-next-line */
         set_error_handler(function ($errno, $errstr, $errfile, $errline) {
         });
-        $isValid = !(preg_match($regex, null) === false);
+        $isValid = !(preg_match($regex, '') === false);
         restore_error_handler();
         return $isValid;
     }
@@ -529,6 +534,9 @@ class PluginFieldsContainerDisplayCondition extends CommonDBChild
 
     public static function showForTabContainer(CommonGLPI $item, $options = [])
     {
+        if (!$item instanceof CommonDBTM) {
+            return;
+        }
 
         $displayCondition_id = $options['displaycondition_id'] ?? 0;
         $display_condition = null;

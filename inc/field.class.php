@@ -416,7 +416,7 @@ class PluginFieldsField extends CommonDBChild
             ]
         );
 
-        return true;
+        return;
     }
 
 
@@ -473,7 +473,7 @@ class PluginFieldsField extends CommonDBChild
         // FIXME: see: https://bugs.mysql.com/bug.php?id=107165
         if (strlen($field_name) > 52) {
             $rand = rand();
-            $field_name = substr($field_name, 0, 52 - strlen($rand)) . $rand;
+            $field_name = substr($field_name, 0, 52 - strlen((string) $rand)) . $rand;
         }
 
         return $field_name;
@@ -506,6 +506,11 @@ class PluginFieldsField extends CommonDBChild
         return 0;
     }
 
+    /**
+     * Get the types of fields
+     *
+     * @return array|string
+     */
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
         if (!$withtemplate) {
@@ -514,6 +519,10 @@ class PluginFieldsField extends CommonDBChild
                     $ong[1] = $this->getTypeName(1);
                     return $ong;
             }
+        }
+
+        if (!$item instanceof CommonDBTM) {
+            return '';
         }
 
         return self::createTabEntry(
@@ -833,7 +842,7 @@ class PluginFieldsField extends CommonDBChild
     public static function showDomContainer($id, $item, $type = "dom", $subtype = "", $field_options = [])
     {
 
-        if ($id !== false) {
+        if ($id != 0) {
             //get fields for this container
             $field_obj = new self();
             $fields = $field_obj->find(
@@ -884,7 +893,7 @@ class PluginFieldsField extends CommonDBChild
         if (isset($_REQUEST['c_id'])) {
             $c_id = $_REQUEST['c_id'];
         } else if (!$c_id = PluginFieldsContainer::findContainer(get_Class($item), $type, $subtype)) {
-            return false;
+            return;
         }
 
         $right = PluginFieldsProfile::getRightOnContainer($_SESSION['glpiactiveprofile']['id'], $c_id);
@@ -905,13 +914,13 @@ class PluginFieldsField extends CommonDBChild
         if ($item->isEntityAssign()) {
             $current_entity = $item->getEntityID();
             if (!in_array($current_entity, $entities)) {
-                return false;
+                return;
             }
         }
 
         //parse REQUEST_URI
         if (!isset($_SERVER['REQUEST_URI'])) {
-            return false;
+            return;
         }
         $current_url = $_SERVER['REQUEST_URI'];
         if (
@@ -920,7 +929,7 @@ class PluginFieldsField extends CommonDBChild
             && strpos($current_url, ".public.php") === false
             && strpos($current_url, "ajax/timeline.php") === false // ITILSolution load from timeline
         ) {
-            return false;
+            return;
         }
 
         //Retrieve dom container
@@ -928,7 +937,7 @@ class PluginFieldsField extends CommonDBChild
 
         //if no dom containers defined for this itemtype, do nothing (in_array case insensitive)
         if (!in_array(strtolower($item::getType()), array_map('strtolower', $itemtypes))) {
-            return false;
+            return;
         }
 
         $html_id = 'plugin_fields_container_' . mt_rand();

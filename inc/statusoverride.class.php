@@ -69,7 +69,7 @@ class PluginFieldsStatusOverride extends CommonDBChild
                   PRIMARY KEY                         (`id`),
                   KEY `plugin_fields_fields_id`       (`plugin_fields_fields_id`)
                ) ENGINE=InnoDB DEFAULT CHARSET={$default_charset} COLLATE={$default_collation} ROW_FORMAT=DYNAMIC;";
-            $DB->query($query) or die($DB->error());
+            $DB->doQuery($query) or die($DB->error());
         }
 
         return true;
@@ -80,7 +80,7 @@ class PluginFieldsStatusOverride extends CommonDBChild
         /** @var DBmysql $DB */
         global $DB;
 
-        $DB->query("DROP TABLE IF EXISTS `" . self::getTable() . "`");
+        $DB->doQuery("DROP TABLE IF EXISTS `" . self::getTable() . "`");
 
         return true;
     }
@@ -92,6 +92,9 @@ class PluginFieldsStatusOverride extends CommonDBChild
 
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
+        if (!$item instanceof CommonDBTM) {
+            return '';
+        }
         return self::createTabEntry(self::getTypeName(), self::countOverridesForContainer($item->getID()));
     }
 
@@ -398,6 +401,9 @@ class PluginFieldsStatusOverride extends CommonDBChild
 
     public static function showForTabContainer(CommonGLPI $item, $options = [])
     {
+        if (!$item instanceof CommonDBTM) {
+            return;
+        }
         $container_id = $item->getID();
         $has_fields = countElementsInTable(PluginFieldsField::getTable(), [
             'plugin_fields_containers_id' => $container_id

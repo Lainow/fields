@@ -251,8 +251,8 @@ class PluginFieldsContainer extends CommonDBTM
                 $compcontainer = new PluginFieldsContainer();
                 $compcontainer->getFromDB($comptab);
 
-                $fields = new PluginFieldsField();
-                $fields = $fields->find(['plugin_fields_containers_id' => $ostab]);
+                $pfields = new PluginFieldsField();
+                $fields = $pfields->find(['plugin_fields_containers_id' => $ostab]);
 
                 $classname = self::getClassname(Computer::getType(), $oscontainer->fields['name']);
                 $osdata = new $classname();
@@ -263,7 +263,7 @@ class PluginFieldsContainer extends CommonDBTM
                 //add fields to compcontainer
                 foreach ($fields as $field) {
                     $newname = $field['name'];
-                    $compfields = $fields->find(['plugin_fields_containers_id' => $comptab, 'name' => $newname]);
+                    $compfields = $pfields->find(['plugin_fields_containers_id' => $comptab, 'name' => $newname]);
                     if ($compfields) {
                         $newname = $newname . '_os';
                         $DB->update(
@@ -308,7 +308,7 @@ class PluginFieldsContainer extends CommonDBTM
                 }
 
                 //drop old table
-                $DB->query("DROP TABLE " . $osdata::getTable());
+                $DB->doQuery("DROP TABLE " . $osdata::getTable());
             } else {
                 $DB->update(
                     'glpi_plugin_fields_containers',
@@ -609,9 +609,7 @@ class PluginFieldsContainer extends CommonDBTM
             }
         }
 
-        $input['itemtypes'] = isset($input['itemtypes'])
-            ? Sanitizer::dbEscape(json_encode($input['itemtypes']))
-            : null;
+        $input['itemtypes'] = Sanitizer::dbEscape(json_encode($input['itemtypes']));
 
         return $input;
     }
@@ -919,17 +917,19 @@ HTML;
         );
 
         if ($is_domtab) {
-            Ajax::updateItemOnSelectEvent(
-                ["dropdown_type$rand", "dropdown_itemtypes$rand"],
-                "subtype_$rand",
-                "../ajax/container_subtype_dropdown.php",
-                [
-                    'type'     => '__VALUE0__',
-                    'itemtype' => '__VALUE1__',
-                    'subtype'  => $params["subtype"],
-                    'rand'     => $rand
-                ]
-            );
+            foreach (["dropdown_type$rand", "dropdown_itemtypes$rand"] as $dropdown) {
+                Ajax::updateItemOnSelectEvent(
+                    $dropdown,
+                    "subtype_$rand",
+                    "../ajax/container_subtype_dropdown.php",
+                    [
+                        'type'     => '__VALUE0__',
+                        'itemtype' => '__VALUE1__',
+                        'subtype'  => $params["subtype"],
+                        'rand'     => $rand
+                    ]
+                );
+            }
         }
     }
 
@@ -1122,8 +1122,19 @@ HTML;
         return $itemtypes;
     }
 
+    /**
+     * Get subtypes for a given item
+     *
+     * @param CommonGLPI $item item
+     *
+     * @return array|string
+     */
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0)
     {
+        if (!$item instanceof CommonDBTM) {
+            return '';
+        }
+
         $itemtypes = self::getEntries('tab', true);
         if (isset($itemtypes[$item->getType()])) {
             $tabs_entries = [];
@@ -1158,7 +1169,7 @@ HTML;
     {
         if ($withtemplate) {
             //Do not display tab from template or from item created from template
-            return [];
+            return false;
         }
 
         //retrieve container for current tab
@@ -1282,7 +1293,7 @@ HTML;
      * @param  int    $items_id      item id
      * @param  string $itemtype      item type
      * @param  array  $data          values send by update form
-     * @param  array  $old_values    old values, if empty -> values add
+     * @param  object  $field_obj     field object
      * @return void
      */
     public static function constructHistory(
@@ -1519,10 +1530,10 @@ HTML;
             if (
                 $field['mandatory'] == 1
                 && (
-                    $value === null
-                    || $value === ''
-                    || (($field['type'] === 'dropdown' || preg_match('/^dropdown-.+/i', $field['type'])) && $value == 0)
-                    || ($field['type'] === 'glpi_item' && $value === null)
+                    $value == null
+                    || $value == ''
+                    || (($field['type'] == 'dropdown' || preg_match('/^dropdown-.+/i', $field['type'])) && $value == 0)
+                    || ($field['type'] == 'glpi_item' && $value == null)
                     || (in_array($field['type'], ['date', 'datetime']) && $value == 'NULL')
                 )
             ) {
@@ -1612,7 +1623,7 @@ HTML;
      *
      * @param CommonDBTM $item Item instance
      *
-     * @return CommonDBTM|true
+     * @return array|true
      */
     public static function postItemAdd(CommonDBTM $item)
     {
@@ -1636,7 +1647,7 @@ HTML;
      *
      * @param CommonDBTM $item Item instance
      *
-     * @return boolean
+     * @return array|boolean
      */
     public static function preItemUpdate(CommonDBTM $item)
     {
@@ -1664,7 +1675,7 @@ HTML;
      *
      * @param CommonDBTM $item Item instance
      *
-     * @return boolean
+     * @return array|false
      */
     public static function preItem(CommonDBTM $item)
     {
@@ -1696,10 +1707,10 @@ HTML;
         if (isset($_SESSION['glpiactiveprofile']['id']) && $_SESSION['glpiactiveprofile']['id'] != null && $c_id > 0) {
             $right = PluginFieldsProfile::getRightOnContainer($_SESSION['glpiactiveprofile']['id'], $c_id);
             if (($right > READ) === false) {
-                return;
+                return false;
             }
         } else {
-            return;
+            return false;
         }
 
 
@@ -1711,7 +1722,7 @@ HTML;
 
         //workaround: when a ticket is created from readdonly profile,
         //it is not initialized; see https://github.com/glpi-project/glpi/issues/1438
-        if (!isset($item->fields) || count($item->fields) == 0) {
+        if (count($item->fields) == 0) {
             $item->fields = $item->input;
         }
 
@@ -1728,7 +1739,7 @@ HTML;
             return $data;
         }
 
-        return;
+        return false;
     }
 
     /**
